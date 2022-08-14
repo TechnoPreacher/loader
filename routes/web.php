@@ -23,4 +23,7 @@ Route::get('/', function () {
 
 Route::get('/run',[ScriptStarter::class,'index']);
 Route::get('/dir',[DirectoryViewerController::class,'index']);
+//Route::get('/dir', function () {
+//    return view('catalog', ['name' => 'James']);
+//});
 Route::get('/csv',[CsvMaker::class,'index']);
