@@ -3,24 +3,85 @@
 namespace App\Http\Controllers;
 
 use DirectoryIterator;
+use Illuminate\Support\Facades\Storage;
 
 
 class TreeScaner
 {
-    private string $directoryToFind;
-    private array $treeOfFiles = [];
-    private array $treeOfCategories = [];
-    private bool $matched = false;//если совпадает содержимое файла с дерикториями с деревом директорий
+
+    private  array $treeOfFiles = [];
+    private  array $treeOfCategories = [];
     private array $unmatchedArray = [];//тут лежат несовпадения
 
 
-
-    public function getUnmatchedArray(): array
+    /**
+     * @return array
+     */
+    public function getTreeOfCategories(): array
     {
-        return $this->unmatchedArray;
+        return $this->treeOfCategories;
     }
 
-    static function key_compare_func($key1, $key2)
+    /**
+     * @return array
+     */
+    public function getTreeOfFiles(): array
+    {
+        return $this->treeOfFiles;
+    }
+
+    public function __construct($filter=['png', 'hex'])
+    {
+        $this->index($filter);
+    }
+
+
+    public function index($filter=['png', 'hex'])
+    {
+        $disk = Storage::disk('cartrige');
+        $dirs = $disk->allDirectories('');
+        natsort($dirs);
+        $dirs = array_flip($dirs);
+
+        foreach ($dirs as $k => $v) {
+            $files = $disk->Files($k);
+            natsort($files);
+            $files = array_flip($files);
+            $dirs[$k] = $files;
+        }
+
+        //чистка от всех файлов кроме png и hex:
+        foreach ($dirs as $k => $v) {
+            if (is_array($v)) {
+                foreach ($v as $k2 => $v2) {
+                    $fileExtensionToCompare = pathinfo(basename($k2), PATHINFO_EXTENSION);
+                    if (!in_array($fileExtensionToCompare, $filter)) {
+                        unset($dirs[$k][$k2]);
+                    }
+                }
+            }
+        }
+$d=[];
+        foreach ($dirs as $k => $v) {
+            if ($k == 'Categories') {
+                $d['Ctegories'] = $v;
+                break;
+            }
+        }
+
+        unset($dirs['Categories']);
+
+      $this->treeOfFiles = $dirs;
+        $this->treeOfCategories = $d;
+
+        unset($d);
+        unset($dirs);
+
+
+    }
+
+
+  private   function key_compare_func($key1, $key2)
     {
 
         {
@@ -33,122 +94,30 @@ class TreeScaner
         }
     }
 
-    public function isMatched(): bool
+
+
+    public function getUnmatchedArray(): array//массив несовпадающих категорий и файлов (нужен ли?)
     {
-
-
-        $a = $this->treeOfCategories['Categories'];
-        $b = $this->treeOfFiles;
-
-        $r = array_diff_ukey($b, $a, [$this, "key_compare_func"]);
-
-        if (sizeof($r) == 0) {
-            $r = array_diff_ukey($a, $b, [$this, "key_compare_func"]);
-        }
-        $this->unmatchedArray = $r;
-        if (sizeof($r) == 0) if (isset($this)) {
-            $this->matched = true;
-        } else {
-
-            $this->matched = false;
-        }
-
-        unset($r);
-
-        return $this->matched;
-
-    }
-
-
-    /**
-     * @param bool $matched
-     */
-    public function setMatched(bool $matched): void
-    {
-        $this->matched = $matched;
-    }
-
-    public function getTreeOfFiles(): array
-    {
-        return $this->treeOfFiles;
-    }
-
-    public function getTreeOfCategories(): array
-    {
-        return $this->treeOfCategories;
-    }
-
-
-    public function __construct($directoryToFind)
-    {
-        $this->directoryToFind = $directoryToFind;
-        $dir = new DirectoryIterator($this->directoryToFind);//на уровень вверх -> потом внутрь каталога флеш и в карт
-        $treeOfFiles = [];
-        $CategoryBuferArray = [];
-        foreach ($dir as $fileInfo) {
-            if ($fileInfo->isDot()) continue;
-            if (pathinfo($fileInfo->getFilename(), PATHINFO_FILENAME) == "") continue; //dont take .name files!
-
-            if ($fileInfo->isDir()) {
-                //two variants: dir with "derictories" images or dir with files
-
-                $filesBuferArray = [];
-
-                $files = new DirectoryIterator($directoryToFind . '/' . $fileInfo->getFilename());
-                foreach ($files as $file) {
-
-                    if ($file->isDot()) continue;
-                    if (pathinfo($file->getFilename(), PATHINFO_FILENAME) == "") continue; //dont take .name files!
-
-                    if ($fileInfo->getFilename() == 'Categories') {
-                        $CategoryBuferArray[] = $file->getFilename();
-                        // pathinfo( $file->getFilename(),PATHINFO_FILENAME);
-                    } else {
-                        $filesBuferArray[] = $file->getFilename();
-                    }
-                }
-                if ($fileInfo->getFilename() != 'Categories') {
-                    $treeOfFiles[$fileInfo->getFilename()] = $filesBuferArray;
-                } else {
-                    //   $CategoryBuferArray[$fileInfo->getFilename()]=$CategoryBuferArray;
-                }
-
-                unset($files);
-                unset($filesBuferArray);
-            }
-        }
-        natsort($CategoryBuferArray);
-        $CategoryBuferArray = array_flip($CategoryBuferArray);
-//        foreach ($CategoryBuferArray as $k=>$v)
-//            {
+//        $a = $this->treeOfCategories;
+//        $b = $this->treeOfFiles;
 //
-//            }
+//        $r = array_diff_ukey($b, $a, [$this, "key_compare_func"]);
+//
+//        if (sizeof($r) == 0) {
+//            $r = array_diff_ukey($a, $b, [$this, "key_compare_func"]);
+//        }
+//        $this->unmatchedArray = $r;
+//        if (sizeof($r) == 0) if (isset($this)) {
+//            $this->matched = true;
+//        } else {
+//
+//            $this->matched = false;
+//        }
+//
+//        unset($r);
 
-
-        $this->treeOfCategories = ['Categories' => $CategoryBuferArray];
-        $this->treeOfFiles = $treeOfFiles;
-        $ar = $this->getTreeOfFiles();
-        foreach ($ar as $k => $v) {
-            $arnames[] = $k;
-            //   $ar[$k] = array_flip($ar[$k]);
-
-            natsort($ar[$k]);
-        }
-
-        natsort($arnames);
-        $arnames = array_flip($arnames);
-        $arnames = array_replace($arnames, $ar);
-
-        foreach ($arnames as $k => $v) {
-            if (is_array($v)) {
-                $arnames[$k] = array_flip($arnames[$k]);
-            }
-
-        }
-
-        $this->treeOfFiles = $arnames;
-
+        return $this->unmatchedArray;
     }
-
-
 }
+
+

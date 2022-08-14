@@ -36,6 +36,14 @@ return [
             'throw' => false,
         ],
 
+
+        'cartrige' => [
+            'driver' => 'local',
+            'root' => '../' . env('PALM_CART_DIR'),//беру путь карте!
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
@@ -71,6 +79,7 @@ return [
 
     'links' => [
         public_path('storage') => storage_path('app/public'),
+        public_path('ima') => storage_path('../' . env('PALM_CART_DIR')),
     ],
 
 ];
