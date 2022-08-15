@@ -79,7 +79,6 @@ return [
 
     'links' => [
         public_path('storage') => storage_path('app/public'),
-        public_path('ima') => storage_path('../' . env('PALM_CART_DIR')),
     ],
 
 ];
